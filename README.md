@@ -17,6 +17,51 @@
 - **Differential Attention.** 어텐션 맵을 두 개 만들어 하나에서 다른 하나를 뺍니다. 양쪽에 공통으로 끼는 잡음을 상쇄하려는 아이디어입니다.
 - **PolyNorm.** 활성 함수 자리에 x, x², x³을 각각 정규화해서 학습되는 가중치로 섞어 씁니다.
 
+전체 구조는 이렇습니다. 같은 블록을 20번 쌓았고, 각 블록은 어텐션과 FFN 앞에서 정규화한 뒤 결과를 원래 값에 더합니다.
+
+```mermaid
+flowchart TB
+    IN["입력 토큰 (최대 2,048개)"] --> EMB["토큰 임베딩<br/>49,152 × 2,048"]
+    EMB --> X0(( ))
+
+    subgraph BLOCK["블록 × 20"]
+        direction TB
+        X0 --> N1["RMSNorm"]
+        N1 --> ATT["Differential Attention<br/>16헤드 · RoPE"]
+        ATT --> ADD1(("+"))
+        X0 -. 잔차 .-> ADD1
+        ADD1 --> N2["RMSNorm"]
+        N2 --> UP["Linear 2,048 → 8,192"]
+        UP --> PN["PolyNorm"]
+        PN --> DOWN["Linear 8,192 → 2,048"]
+        DOWN --> ADD2(("+"))
+        ADD1 -. 잔차 .-> ADD2
+    end
+
+    ADD2 --> NF["RMSNorm"]
+    NF --> HEAD["LM head<br/>(토큰 임베딩과 가중치 공유)"]
+    HEAD --> OUT["다음 토큰 확률"]
+```
+
+Differential Attention 한 헤드 안에서는 이런 일이 일어납니다. 쿼리와 키를 반으로 쪼개 어텐션 맵을 두 개 만들고, 둘의 차이를 값(V)에 적용합니다. λ는 학습되는 값입니다.
+
+```mermaid
+flowchart LR
+    X["입력 x"] --> Q["Q → Q1, Q2"]
+    X --> K["K → K1, K2"]
+    X --> V["V"]
+    Q --> A1["softmax(Q1·K1ᵀ)"]
+    K --> A1
+    Q --> A2["softmax(Q2·K2ᵀ)"]
+    K --> A2
+    A1 --> SUB["A1 − λ·A2"]
+    A2 --> SUB
+    SUB --> MUL["× V"]
+    V --> MUL
+    MUL --> LN["헤드별 RMSNorm<br/>× (1 − λ_init)"]
+    LN --> O["출력 Linear"]
+```
+
 둘 다 제가 고안한 게 아니고 Motif-2.6B 기술보고서([arXiv:2508.09148](https://arxiv.org/abs/2508.09148))와 Differential Transformer(Ye et al., 2024)를 읽고 직접 구현해 본 것입니다. 원 저자들과는 관계없는 개인 구현이라, 틀린 부분이 있다면 제 실수입니다.
 
 데이터는 영어 웹(DCLM-baseline), 한국어 웹(FineWeb2), 수학(FineMath 4+) 세 가지를 섞었습니다. 처음엔 영어를 65%로 많이 먹이다가 끝으로 갈수록 한국어 50%, 수학 25%까지 올리는 식으로 비율을 서서히 바꿨습니다. 학습률은 워밍업 뒤 쭉 유지하다 마지막 20% 구간에서만 내렸습니다.
