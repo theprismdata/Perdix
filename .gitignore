@@ -1,0 +1,19 @@
+# 모델 가중치 / 체크포인트 (용량 큼)
+ckpt/
+packed/
+*.pt
+*.safetensors
+*.bin
+
+# 학습 로그 / 산출물
+*.log
+loss_final.html
+loss_lr.txt
+progress.json
+
+# 환경 / 도구
+__pycache__/
+venv/
+.omc/
+.claude/
+.DS_Store
