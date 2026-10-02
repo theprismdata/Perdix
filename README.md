@@ -1,50 +1,51 @@
 # Perdix
 
-밑바닥부터 사전학습해 보는 작은 언어 모델(SLM)입니다.
+DGX Spark 한 대로 언어 모델을 처음부터 학습시켜 본 기록입니다.
 
-> 페르딕스(Perdix)는 명장 다이달로스의 어린 제자입니다. 톱과 컴퍼스를 발명했지만,
-> 탑에서 떨어지다 자고새가 되어 그 뒤로는 낮게만 납니다.
-> 이 모델도 아직은 낮게 납니다.
+이름은 그리스 신화의 페르딕스에서 따왔습니다. 다이달로스의 어린 제자였고 톱과 컴퍼스를 발명했는데, 탑에서 떨어지다 자고새가 되는 바람에 그 뒤로는 낮게만 날아다닌다고 합니다. 지금 이 모델 수준이 딱 그렇습니다.
 
-## 현재 상태
+## 솔직한 현재 상태
 
-- **베이스 모델**입니다. 이어쓰기만 하고, 대화·지시 수행·툴콜은 학습하지 않았습니다.
-- 약 1.1B 파라미터 (dim 2048, 20층, 16헤드, FFN 8192, 문맥 2048 토큰, vocab 49,152)
-- 30B 토큰 사전학습: 영어 웹(DCLM-baseline), 한국어 웹(FineWeb2 kor), 수학(FineMath 4+)
-- 가중치는 이 저장소에 포함하지 않습니다.
+아직 할 줄 아는 게 이어쓰기뿐입니다. 문장 앞부분을 주면 뒤를 그럴듯하게 잇는 정도이고, 질문에 답하거나 지시를 따르지는 못합니다. 대화 데이터로는 한 번도 학습시키지 않았으니 당연한 결과입니다.
 
-## 구조
+크기는 1.1B 파라미터입니다. 처음엔 350M으로 시작했다가 중간에 키웠습니다. 학습에는 30B 토큰을 썼고, 장비 한 대에서 초당 6,600토큰 정도 나와서 꼬박 50일 넘게 걸렸습니다. loss는 10.7에서 시작해 2.3 근처에서 끝났습니다.
 
-decoder-only, pre-RMSNorm, RoPE, tied embedding 위에 두 가지를 구현했습니다.
+가중치는 여기 올리지 않았습니다.
 
-- **Differential Attention**: `[softmax(Q1K1ᵀ) − λ·softmax(Q2K2ᵀ)] V`
-- **PolyNorm**: x, x², x³를 각각 RMS 정규화한 뒤 학습 가중치로 합성하는 활성 함수
+## 어떻게 만들었나
 
-## 파일
+기본 뼈대는 흔한 decoder-only 트랜스포머입니다(pre-RMSNorm, RoPE, 임베딩 공유). 거기에 두 가지를 넣었습니다.
 
-| 파일 | 내용 |
-|---|---|
-| `model.py` | `PerdixConfig`, `PerdixSLM` |
-| `tokenize_pack.py` | parquet → uint16 토큰 바이너리(`packed/`) |
-| `train.py` | 사전학습 (선형 데이터 믹싱, WSD 학습률, bf16, 재개 지원) |
-| `test_slm_infer.py`, `serve_slm.py` | 체크포인트 이어쓰기 테스트 / 임시 서빙 |
-| `inspect_model.py`, `view_data.py` | 모델 파일 구조 분석 / 학습 데이터 뷰어 |
-| `serve_hf.py`, `serve_hf_tools.py` | HF 모델용 OpenAI 호환 서버 (`MODEL_PATH` 환경변수로 지정). `_tools`는 툴콜 지원 |
-| `test_hf_infer.py`, `test_hf_toolcall.py`, `test_api_toolcall.py` | HF 모델 추론 / 툴콜 / API 왕복 테스트 |
+- **Differential Attention.** 어텐션 맵을 두 개 만들어 하나에서 다른 하나를 뺍니다. 양쪽에 공통으로 끼는 잡음을 상쇄하려는 아이디어입니다.
+- **PolyNorm.** 활성 함수 자리에 x, x², x³을 각각 정규화해서 학습되는 가중치로 섞어 씁니다.
 
-## 사용
+둘 다 제가 고안한 게 아니고 Motif-2.6B 기술보고서([arXiv:2508.09148](https://arxiv.org/abs/2508.09148))와 Differential Transformer(Ye et al., 2024)를 읽고 직접 구현해 본 것입니다. 원 저자들과는 관계없는 개인 구현이라, 틀린 부분이 있다면 제 실수입니다.
+
+데이터는 영어 웹(DCLM-baseline), 한국어 웹(FineWeb2), 수학(FineMath 4+) 세 가지를 섞었습니다. 처음엔 영어를 65%로 많이 먹이다가 끝으로 갈수록 한국어 50%, 수학 25%까지 올리는 식으로 비율을 서서히 바꿨습니다. 학습률은 워밍업 뒤 쭉 유지하다 마지막 20% 구간에서만 내렸습니다.
+
+## 돌려 보려면
 
 ```bash
-python3 tokenize_pack.py            # 데이터 토큰화
-python3 train.py --smoke            # 초소형 스모크 테스트
-python3 train.py --compile          # 본 학습
+python3 tokenize_pack.py     # parquet을 토큰 바이너리로 변환 (packed/ 에 쌓임)
+python3 train.py --smoke     # 아주 작은 설정으로 일단 도는지 확인
+python3 train.py --compile   # 본 학습
 python3 train.py --resume ckpt/latest.pt
 ```
 
-## 참고한 연구
+데이터 경로는 `tokenize_pack.py` 위쪽에 적혀 있으니 본인 환경에 맞게 고쳐야 합니다. 학습 설정(토큰 예산, 배치, 학습률, 믹싱 비율)은 전부 `train.py` 맨 위 상수입니다.
 
-- Motif-2.6B 기술보고서 ([arXiv:2508.09148](https://arxiv.org/abs/2508.09148)): Differential Attention + PolyNorm 구조, 데이터 믹싱과 학습률 감쇠 방식. Perdix는 Motif Technologies와 무관한 독립 구현입니다.
-- Ye et al. 2024, Differential Transformer: λ 재파라미터화
+## 들어 있는 파일
+
+- `model.py` — 모델 본체. `PerdixConfig`, `PerdixSLM`
+- `train.py`, `tokenize_pack.py` — 학습과 데이터 준비
+- `serve_slm.py`, `test_slm_infer.py` — 체크포인트를 띄워서 이어쓰기 시켜 보는 용도
+- `inspect_model.py`, `view_data.py` — 모델 파일 구조와 학습 데이터를 들여다보는 도구
+- `serve_hf.py`, `serve_hf_tools.py` — 허깅 페이스 형식 모델을 OpenAI 호환 API로 띄우는 서버. `MODEL_PATH` 환경변수로 모델 폴더를 지정합니다. `_tools` 쪽이 툴콜까지 처리합니다.
+- `test_hf_infer.py`, `test_hf_toolcall.py`, `test_api_toolcall.py` — 위 서버와 모델이 툴콜을 제대로 하는지 확인하는 테스트
+
+## 앞으로
+
+다음 단계는 대화와 지시를 가르치는 것이고, 잘 되면 작은 코딩 에이전트까지 가 보고 싶습니다. 페르딕스가 원래 뭔가 만드는 걸 잘하던 아이였으니까요.
 
 ## 라이선스
 
