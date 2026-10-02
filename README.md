@@ -20,27 +20,26 @@
 전체 구조는 이렇습니다. 같은 블록을 20번 쌓았고, 각 블록은 어텐션과 FFN 앞에서 정규화한 뒤 결과를 원래 값에 더합니다.
 
 ```mermaid
-flowchart TB
-    IN["입력 토큰 (최대 2,048개)"] --> EMB["토큰 임베딩<br/>49,152 × 2,048"]
-    EMB --> X0(( ))
+flowchart LR
+    IN["입력 토큰<br/>(최대 2,048개)"] --> EMB["토큰 임베딩<br/>49,152 × 2,048"]
+    EMB --> N1
 
     subgraph BLOCK["블록 × 20"]
-        direction TB
-        X0 --> N1["RMSNorm"]
-        N1 --> ATT["Differential Attention<br/>16헤드 · RoPE"]
+        direction LR
+        N1["RMSNorm"] --> ATT["Differential<br/>Attention<br/>16헤드 · RoPE"]
         ATT --> ADD1(("+"))
-        X0 -. 잔차 .-> ADD1
         ADD1 --> N2["RMSNorm"]
-        N2 --> UP["Linear 2,048 → 8,192"]
+        N2 --> UP["Linear<br/>2,048 → 8,192"]
         UP --> PN["PolyNorm"]
-        PN --> DOWN["Linear 8,192 → 2,048"]
+        PN --> DOWN["Linear<br/>8,192 → 2,048"]
         DOWN --> ADD2(("+"))
-        ADD1 -. 잔차 .-> ADD2
     end
 
+    EMB -. 잔차 .-> ADD1
+    ADD1 -. 잔차 .-> ADD2
     ADD2 --> NF["RMSNorm"]
-    NF --> HEAD["LM head<br/>(토큰 임베딩과 가중치 공유)"]
-    HEAD --> OUT["다음 토큰 확률"]
+    NF --> HEAD["LM head<br/>(임베딩과<br/>가중치 공유)"]
+    HEAD --> OUT["다음 토큰<br/>확률"]
 ```
 
 Differential Attention 한 헤드 안에서는 이런 일이 일어납니다. 쿼리와 키를 반으로 쪼개 어텐션 맵을 두 개 만들고, 둘의 차이를 값(V)에 적용합니다. λ는 학습되는 값입니다.
