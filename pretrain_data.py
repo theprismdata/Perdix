@@ -5,7 +5,7 @@ parquet의 text 컬럼을 tokenizer/tokenizer.json으로 인코딩하고
 파일 단위로 재개 가능(이미 있는 .bin은 건너뜀).
 
 실행:
-    python3 tokenize_pack.py [소스이름 ...]   # 인자 없으면 전체
+    python3 pretrain_data.py [소스이름 ...]   # 인자 없으면 전체
 결과:
     packed/<source>/<원본파일명>.bin
     packed/<source>/meta.jsonl  (파일별 토큰 수 기록)

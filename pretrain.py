@@ -7,9 +7,9 @@
 - bf16 autocast, grad accumulation, 체크포인트 재개 지원
 
 실행:
-    python3 train.py                     # 기본 설정
-    python3 train.py --smoke             # 초소형 스모크 테스트
-    python3 train.py --resume ckpt/latest.pt
+    python3 pretrain.py                     # 기본 설정
+    python3 pretrain.py --smoke             # 초소형 스모크 테스트
+    python3 pretrain.py --resume ckpt/latest.pt
 """
 import argparse
 import glob

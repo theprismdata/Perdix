@@ -4,7 +4,7 @@
 
 지원 형식:
   - .safetensors        : 헤더만 파싱 (50GB 파일도 즉시)
-  - .pt / .pth          : torch 체크포인트 (train.py 형식 자동 인식)
+  - .pt / .pth          : torch 체크포인트 (pretrain.py 형식 자동 인식)
   - HF 모델 디렉토리     : config.json + *.safetensors 종합
 
 사용:
@@ -45,7 +45,7 @@ def read_safetensors_header(path):
 
 
 def load_pt_tensors(path):
-    """train.py 체크포인트/일반 .pt에서 {name: (dtype, shape)} 추출 (mmap 시도)"""
+    """pretrain.py 체크포인트/일반 .pt에서 {name: (dtype, shape)} 추출 (mmap 시도)"""
     import torch
     try:
         obj = torch.load(path, map_location="meta", weights_only=True, mmap=True)

@@ -3,16 +3,16 @@
 외장하드의 원본 parquet에서 문서를 문자열로 출력한다.
 
 사용 (화면 보기):
-    python3 view_data.py korean              # 한국어 문서 3개
-    python3 view_data.py web_en --n 5        # 영어 5개
-    python3 view_data.py math --skip 100     # 100번째부터
-    python3 view_data.py korean --chars 0    # 전문 출력 (자르지 않음)
-    python3 view_data.py korean --url        # 출처 URL도 표시
+    python3 inspect_data.py korean              # 한국어 문서 3개
+    python3 inspect_data.py web_en --n 5        # 영어 5개
+    python3 inspect_data.py math --skip 100     # 100번째부터
+    python3 inspect_data.py korean --chars 0    # 전문 출력 (자르지 않음)
+    python3 inspect_data.py korean --url        # 출처 URL도 표시
 
 사용 (파일로 추출):
-    python3 view_data.py all --n 1000 --out samples/
+    python3 inspect_data.py all --n 1000 --out samples/
         # 세 소스 각 1,000문서씩 → samples/korean.jsonl 등 3개 파일
-    python3 view_data.py korean --n 0 --all-files --out dump/
+    python3 inspect_data.py korean --n 0 --all-files --out dump/
         # 한국어 전체 추출 (주의: 원문 그대로라 수십~수백 GB)
 """
 import argparse
