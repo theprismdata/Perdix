@@ -138,6 +138,10 @@ python3 inspect_data.py all --n 1000 --out samples/    # 소스별 1,000문서�
 - `inspect_model.py`, `inspect_data.py` — 모델 파일 구조와 학습 데이터를 들여다보는 도구
 - `hf/` — 허깅 페이스 형식으로 변환하는 코드와 모델 카드(베이스, Instruct)
 
+## BUILD 한 모델 다운로드
+https://huggingface.co/prismdata/Perdix-1.1B-Base 
+https://huggingface.co/prismdata/Perdix-1.1B-Instruct
+
 ## 라이선스
 
 Apache-2.0
